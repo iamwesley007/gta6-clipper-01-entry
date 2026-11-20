@@ -10,11 +10,26 @@
 // stand in for /bot and /output:
 //   mkdir -p out && MAKEFUN_BOT_DIR=. MAKEFUN_OUTPUT_DIR=out node main.ts
 
-import { copyFileSync, mkdirSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const BOT_DIR = process.env.MAKEFUN_BOT_DIR ?? '/bot';
 const OUTPUT_DIR = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
+
+// VIDEO.json must name a real public YouTube Short; a bad address would
+// score nothing, so fail loudly instead of copying it through.
+const SHORTS_URL = /^https:\/\/(www\.)?youtube\.com\/shorts\/[A-Za-z0-9_-]+$/;
+let video: unknown;
+try {
+  video = JSON.parse(readFileSync(join(BOT_DIR, 'VIDEO.json'), 'utf8'));
+} catch (err) {
+  console.error(`VIDEO.json in ${BOT_DIR} is not valid JSON: ${(err as Error).message}`);
+  process.exit(1);
+}
+if (typeof video !== 'object' || video === null || typeof (video as { url?: unknown }).url !== 'string' || !SHORTS_URL.test((video as { url: string }).url)) {
+  console.error(`VIDEO.json in ${BOT_DIR} must contain a valid YouTube Shorts URL (https://youtube.com/shorts/<id>), got: ${JSON.stringify(video)}`);
+  process.exit(1);
+}
 
 mkdirSync(OUTPUT_DIR, { recursive: true });
 try {
